@@ -51,7 +51,7 @@ fn walk(node: &Handle) {
 }
 
 fn main() ->  Result<(), Box<dyn std::error::Error>> {
-    let warc_file_path = "/Users/shubham/startups/warc_parser/data/CC-MAIN-20241201162023-20241201192023-00000.warc.gz";
+    let warc_file_path = "/Users/shubham/projects/rust_projects/warc-parser-rs/data/CC-MAIN-20241201162023-20241201192023-00000.warc.gz";
     let warc_file = WarcReader::from_path_gzip(warc_file_path)?;
     
     let mut count = 0;
