@@ -1,6 +1,5 @@
 #[warn(unused_imports)]
 use warc::WarcReader;
-// use warc::WarcHeader;
 use markup5ever_rcdom::{RcDom, Handle};
 use html5ever::parse_document;
 use html5ever::tendril::TendrilSink;
@@ -25,7 +24,6 @@ struct ImageData {
     alt: String,
 }
 
-// &Handle: as we want to pass this without taking the ownership or cloning
 #[allow(unused_variables)]
 fn walk(node: &Handle, record_id: &str,
     images: &mut Vec<ImageData>) {
@@ -75,22 +73,14 @@ fn main() ->  Result<(), Box<dyn std::error::Error>> {
     let mut res_count = 0;
     let mut req_count = 0;
     let mut meta_count = 0;
-    let  src_count: i32 = 0;
+    let mut src_count: i32 = 0;
     
     for record in warc_file.iter_records(){
         count += 1;
 
-        // println!("{}: {}", WarcHeader::RecordID, record?.warc_id());
-        // println!("{}: {}", WarcHeader::WarcType, record?.date());
-     
         match record {
             Err(e) => println!("ERROR: {}", e),
             Ok(record) => {
-                // println!("{}: {}", WarcHeader::WarcType, record.date());        
-                // println!("{}: {}", WarcHeader::WarcType, record.warc_type());
-                // println!("Body: {:?}", std::str::from_utf8(record.body())?);
-                // println!("Body: {:?}", String::from_utf8_lossy(record.body()));
-                
 
                 if record.warc_type().to_string() == "response"{
                     res_count += 1;
@@ -105,14 +95,12 @@ fn main() ->  Result<(), Box<dyn std::error::Error>> {
                     let mut images = Vec::new();
 
                     walk(&document, &record_id, &mut images);
-                    // println!("here: {:?}", images);
-                    for img in images {
+                    for img in &images {
                         println!("here: {:?}", img);
                     }
-
-                    // src_count += all_src.len() as i32;
-                    // println!("{}: {}", WarcHeader::RecordID, record.warc_id());
                     
+                    // logging the number of extracted URLs
+                    src_count += images.len() as i32;
 
                 } else if record.warc_type().to_string() == "request" {
                     req_count +=1;
