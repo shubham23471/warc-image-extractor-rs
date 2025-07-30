@@ -1,13 +1,38 @@
 
 use std::{fs::File, path::Path, sync::Arc};
+use std::io::Write;
 use parquet::{
     data_type::{ByteArray, ByteArrayType},
-    file::{properties::WriterProperties, writer::SerializedFileWriter},
+    file::{properties::WriterProperties, writer::SerializedFileWriter, 
+        writer::SerializedRowGroupWriter},
     schema::parser::parse_message_type,
 
 };
 
 use crate::ImageData;
+
+fn write_rows_to_parquet<W: Write>(row_group_writer: &mut SerializedRowGroupWriter<'_, W>, 
+                        images: &[ImageData]) 
+    where W: Send{
+        // 5. Write the `record_id` column
+    if let Some(mut serialized_column) = row_group_writer.next_column().unwrap() {
+        // Use the typed API for clarity and future-proofing
+        let typed_writer = serialized_column.typed::<ByteArrayType>();
+
+        // Map each ImageData.record_id (String) into a ByteArray
+        let values: Vec<ByteArray> = images
+            .iter()
+            .map(|img| ByteArray::from(img.record_id.as_str()))
+            .collect();
+
+        // No definition levels (REQUIRED field)
+        typed_writer.write_batch(&values, None, None).unwrap();
+
+        // Close this column before moving on
+        serialized_column.close().unwrap();
+    }
+
+}
 
 
 /// Write the `record_id` field of each image into a Parquet file at `path`.
@@ -31,24 +56,7 @@ pub fn write_images_to_parquet(images: &[ImageData], path: &str) {
     // 4. Start a single row group
     let mut row_group_writer = writer.next_row_group().unwrap();
 
-
-    // 5. Write the `record_id` column
-    if let Some(mut serialized_column) = row_group_writer.next_column().unwrap() {
-        // Use the typed API for clarity and future-proofing
-        let typed_writer = serialized_column.typed::<ByteArrayType>();
-
-        // Map each ImageData.record_id (String) into a ByteArray
-        let values: Vec<ByteArray> = images
-            .iter()
-            .map(|img| ByteArray::from(img.record_id.as_str()))
-            .collect();
-
-        // No definition levels (REQUIRED field)
-        typed_writer.write_batch(&values, None, None).unwrap();
-
-        // Close this column before moving on
-        serialized_column.close().unwrap();
-    }
+    write_rows_to_parquet(&mut row_group_writer, images);
 
     // 6. Finalize the row group and writer
     row_group_writer.close().unwrap();
