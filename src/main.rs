@@ -1,9 +1,12 @@
+mod writer;
+
 #[warn(unused_imports)]
 use warc::WarcReader;
 use markup5ever_rcdom::{RcDom, Handle};
 use html5ever::parse_document;
 use html5ever::tendril::TendrilSink;
 use markup5ever_rcdom::NodeData;
+use writer::{print_hello, write_images_to_parquet};
 
 
 #[allow(dead_code)]
@@ -74,6 +77,7 @@ fn main() ->  Result<(), Box<dyn std::error::Error>> {
     let mut req_count = 0;
     let mut meta_count = 0;
     let mut src_count: i32 = 0;
+    let mut images = Vec::new();
     
     for record in warc_file.iter_records(){
         count += 1;
@@ -91,17 +95,10 @@ fn main() ->  Result<(), Box<dyn std::error::Error>> {
                     let dom =  parser.one::<String>(response_body.into());
                     
                     let document: Handle = dom.document;
-                    let record_id = record.warc_id();
-                    let mut images = Vec::new();
+                    let record_id = record.warc_id().replace("<urn:uuid:", "").replace(">", "");
 
                     walk(&document, &record_id, &mut images);
-                    for img in &images {
-                        println!("here: {:?}", img);
-                    }
                     
-                    // logging the number of extracted URLs
-                    src_count += images.len() as i32;
-
                 } else if record.warc_type().to_string() == "request" {
                     req_count +=1;
                 } else if record.warc_type().to_string() == "metadata" {
@@ -114,9 +111,24 @@ fn main() ->  Result<(), Box<dyn std::error::Error>> {
         if *&count > 6 {
             break
         }
+
+
     }
-    
+
+    // for debugging
+    for img in &images {
+        println!("[DEBUG] | {:?}", img);
+    }
+                    
+    // logging the number of extracted URLs
+    src_count += images.len() as i32;
+    print_hello();
+
+    let parquet_file_path = "/Users/shubham/projects/rust_projects/warc-parser-rs/data/sample.parquet";
+    write_images_to_parquet(&images, &parquet_file_path);
     println!("Total count: {count}");
+
+
 
     let stats = CountInfo{
         total_count: count, 
