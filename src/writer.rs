@@ -11,19 +11,25 @@ use parquet::{
 
 use crate::ImageData;
 
-fn write_rows_to_parquet<W: Write>(row_group_writer: &mut SerializedRowGroupWriter<'_, W>, 
+fn write_rows_to_parquet<W: Write>(row_group_writer: &mut SerializedRowGroupWriter<W>, 
                         images: &[ImageData]) 
     where W: Send{
-        // 5. Write the `record_id` column
-    if let Some(mut serialized_column) = row_group_writer.next_column().unwrap() {
+    
+    for field in ["record_id", "src", "alt"] {
+        if let Some(mut serialized_column) = row_group_writer.next_column().unwrap() {
         // Use the typed API for clarity and future-proofing
         let typed_writer = serialized_column.typed::<ByteArrayType>();
 
         // Map each ImageData.record_id (String) into a ByteArray
         let values: Vec<ByteArray> = images
             .iter()
-            .map(|img| ByteArray::from(img.record_id.as_str()))
-            .collect();
+            .map(|img| 
+                match field {
+                    "record_id" => ByteArray::from(img.record_id.as_str()),
+                    "src" => ByteArray::from(img.src.as_str()),
+                    "alt" => ByteArray::from(img.alt.as_str()),
+                    _ => unreachable!(),
+            }).collect();
 
         // No definition levels (REQUIRED field)
         typed_writer.write_batch(&values, None, None).unwrap();
@@ -31,7 +37,8 @@ fn write_rows_to_parquet<W: Write>(row_group_writer: &mut SerializedRowGroupWrit
         // Close this column before moving on
         serialized_column.close().unwrap();
     }
-
+    }
+    
 }
 
 
@@ -44,6 +51,8 @@ pub fn write_images_to_parquet(images: &[ImageData], path: &str) {
     let message_type = r#"
       message schema {
         REQUIRED BYTE_ARRAY record_id;
+        REQUIRED BYTE_ARRAY src;
+        REQUIRED BYTE_ARRAY alt;
       }
     "#;
     let schema = Arc::new(parse_message_type(message_type).unwrap());
