@@ -5,6 +5,7 @@ edition = "2024"
 default-run = "warc-parser-rs"
 
 [dependencies]
+flamegraph = "0.6.8"
 html5ever = "0.35.0"
 markup5ever_rcdom = "0.35.0"
 parquet = "55.2.0"

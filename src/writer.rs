@@ -71,9 +71,3 @@ pub fn write_images_to_parquet(images: &[ImageData], path: &str) {
     row_group_writer.close().unwrap();
     writer.close().unwrap();
 }
-
-
-
-pub fn print_hello() {
-    println!("[DEBUG] | Message from writer.rs");
-}

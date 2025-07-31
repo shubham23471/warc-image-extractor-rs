@@ -6,7 +6,8 @@ use markup5ever_rcdom::{RcDom, Handle};
 use html5ever::parse_document;
 use html5ever::tendril::TendrilSink;
 use markup5ever_rcdom::NodeData;
-use writer::{print_hello, write_images_to_parquet};
+use writer::{write_images_to_parquet};
+use std::time::{Duration, Instant};
 
 
 #[allow(dead_code)]
@@ -78,26 +79,39 @@ fn main() ->  Result<(), Box<dyn std::error::Error>> {
     let mut meta_count = 0;
     let mut src_count: i32 = 0;
     let mut images = Vec::new();
-    
+
+    // For time profilling
+    let mut warc_read_time = Duration::default();
+    let mut html_parse_time = Duration::default();
+
+
+    // let parse_start = Instant::now();
     for record in warc_file.iter_records(){
         count += 1;
 
-        match record {
+        let warc_start = Instant::now();
+        let result = record;
+        warc_read_time += warc_start.elapsed();
+
+
+        match result {
             Err(e) => println!("ERROR: {}", e),
             Ok(record) => {
 
                 if record.warc_type().to_string() == "response"{
                     res_count += 1;
-                    let response_body = String::from_utf8_lossy(&record.body());
-                    
 
+                    let html_start = Instant::now();
+
+                    let response_body = String::from_utf8_lossy(&record.body());
                     let parser = parse_document(RcDom::default(), Default::default());
                     let dom =  parser.one::<String>(response_body.into());
                     
                     let document: Handle = dom.document;
                     let record_id = record.warc_id().replace("<urn:uuid:", "").replace(">", "");
-
                     walk(&document, &record_id, &mut images);
+
+                    html_parse_time += html_start.elapsed();
                     
                 } else if record.warc_type().to_string() == "request" {
                     req_count +=1;
@@ -108,7 +122,7 @@ fn main() ->  Result<(), Box<dyn std::error::Error>> {
             }
         }
 
-        if *&count > 6 {
+        if *&count > 10000 {
             break
         }
 
@@ -116,19 +130,26 @@ fn main() ->  Result<(), Box<dyn std::error::Error>> {
     }
 
     // for debugging
-    for img in &images {
-        println!("[DEBUG] | {:?}", img);
-    }
-                    
+    // for img in &images {
+    //     println!("[DEBUG] | {:?}", img);
+    // }
+    // println!("Time to parse WARC and HTML: {:?}", parse_start.elapsed());
+    println!("Total time to read WARC records: {:?}", warc_read_time);
+    println!("Total time to parse HTML: {:?}", html_parse_time);
+
+
     // logging the number of extracted URLs
     src_count += images.len() as i32;
-    print_hello();
 
+    let parquet_start = Instant::now();
+
+    // let parquet_file_path = "/Users/shubham/projects/rust_projects/warc-parser-rs/data/CC-MAIN-20241201162023-20241201192023-00000.parquet";
+    
     let parquet_file_path = "/Users/shubham/projects/rust_projects/warc-parser-rs/data/sample.parquet";
+    
     write_images_to_parquet(&images, &parquet_file_path);
+    println!("Time to write parquet: {:?}", parquet_start.elapsed());
     println!("Total count: {count}");
-
-
 
     let stats = CountInfo{
         total_count: count, 
