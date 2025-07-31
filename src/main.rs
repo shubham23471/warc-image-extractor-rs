@@ -84,17 +84,19 @@ fn main() ->  Result<(), Box<dyn std::error::Error>> {
     let mut warc_read_time = Duration::default();
     let mut html_parse_time = Duration::default();
 
+    let mut iter = warc_file.iter_records(); // lazy iterator
 
-    // let parse_start = Instant::now();
-    for record in warc_file.iter_records(){
-        count += 1;
-
+    loop {
         let warc_start = Instant::now();
-        let result = record;
+        let record = match iter.next() {
+            Some(rec) => rec,
+            None => break,
+        };
         warc_read_time += warc_start.elapsed();
 
+        count += 1;
 
-        match result {
+        match record {
             Err(e) => println!("ERROR: {}", e),
             Ok(record) => {
 
@@ -126,14 +128,13 @@ fn main() ->  Result<(), Box<dyn std::error::Error>> {
             break
         }
 
-
     }
 
     // for debugging
     // for img in &images {
     //     println!("[DEBUG] | {:?}", img);
     // }
-    // println!("Time to parse WARC and HTML: {:?}", parse_start.elapsed());
+    
     println!("Total time to read WARC records: {:?}", warc_read_time);
     println!("Total time to parse HTML: {:?}", html_parse_time);
 
